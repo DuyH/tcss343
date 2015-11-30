@@ -4,7 +4,7 @@ import java.util.*;
 /**
  * Created by duy on 11/26/15.
  */
-public class TradingPosts {
+public class tcss343 {
     private static int MAX_VALUE = 100; // Maximum value for random generator
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -16,16 +16,15 @@ public class TradingPosts {
         int[][] matrixFromFile = getMatrixFromFile(fileName);
 
         // Generate & output to file random matrices of size 100, 200, 400, 600, 800
-        writeRandomMatrix(100, "input100.txt");
-        writeRandomMatrix(200, "input200.txt");
-        writeRandomMatrix(400, "input400.txt");
-        writeRandomMatrix(600, "input600.txt");
-        writeRandomMatrix(800, "input800.txt");
+        // writeRandomMatrix(100, "input100.txt");
+        // writeRandomMatrix(200, "input200.txt");
+        // writeRandomMatrix(400, "input400.txt");
+        // writeRandomMatrix(600, "input600.txt");
+        // writeRandomMatrix(800, "input800.txt");
 
         // 3.1 - BRUTE FORCE
-        int[][] randomMatrix = getRandomMatrix(10);
         long startTime = System.currentTimeMillis();
-        printBruteSolution(randomMatrix);
+        printBruteSolution(matrixFromFile);
         long endTime = System.currentTimeMillis();
         System.out.println("Brute Force Runtime: " + (endTime - startTime) + "ms");
 
@@ -49,26 +48,51 @@ public class TradingPosts {
      */
     public static void printBruteSolution(int[][] matrix) {
 
+        /* Cost Analysis:
+                Each possible solution row has at most O(n) elements in a path
+                Each element has a constant lookup time of accessing the post cost matrix.
+                There are #possiblePaths * n elements:         ((n-2)(n-2)/2+1) * n elements
+                Each element is asked a conditional so:        2((n-2)(n-1)/2+1) * n) cost
+                Each lookup involves an addition operation so: 3((n-2)(n-1)/2+1) * n) cost
+                Adding to treemap is log(n) insertion cost so: log((n-2)(n-1)/2+1)
+
+                Total cost: 3n((n-2)(n-1)/2+1) + log((n-2)(n-1)/2+1)
+
+           Runtime Tests (ms) on my MacBook Pro, 2.7GHz i5, 64bit, 8GB RAM:
+                n        Trial 1 | Trial 2 | Trial 3
+                100      97        105       81
+                200      201       199       209
+                400      3626      3898      3066
+                600      10579     11753     11954
+                800      OutOfMem  OutOfMem  OutOfMem
+        */
+
         // Number of posts 'n'
         int numPosts = matrix.length;
 
         // A map containing paths as key, costs as value.
+        // TreeMap uses a Red-Black tree, log(n) insertion
         TreeMap<Integer, ArrayList<Integer>> pathCosts = new TreeMap<>();
 
-        // Retrieve all possible paths.
+        // Retrieve all possible paths. O(n^2) runtime
         Set<ArrayList<Integer>> possibleSolutions = getPossiblePaths(numPosts);
-        System.out.println(possibleSolutions);
+        // System.out.println(possibleSolutions);
 
+        // Fill map with all possible solutions and their cost.
         for (ArrayList<Integer> row : possibleSolutions) {
             int cost = 0;
-                for (Integer col : row) {
-                    if (row.indexOf(col) + 1 < row.size()) {
-                        cost += matrix[row.indexOf(col)][row.indexOf(col) + 1];
-                    }
+            Integer current = null;
+            // Look at previous post and current post to know where to go in cost matrix
+            for (Integer next : row) {
+                if (current != null) {
+                    cost += matrix[current-1][next-1];
                 }
+                current = next;
+            }
             pathCosts.put(cost, row);
         }
-        System.out.println("Best path: " + pathCosts.firstEntry().getValue() + " with cost: " + pathCosts.firstKey());
+        // System.out.println(pathCosts);
+        System.out.println("Best path via Brute Force: " + pathCosts.firstEntry().getValue() + " with cost of " + pathCosts.firstKey());
     }
 
 
@@ -152,7 +176,7 @@ public class TradingPosts {
                 if (j <= i) {
                     matrix[i-1][j-1] = 0;
                 } else {
-                    matrix[i-1][j-1] = random.nextInt(MAX_VALUE);
+                    matrix[i-1][j-1] = random.nextInt(MAX_VALUE) + 1; // +1 to avoid 0 cost
                 }
             }
             // matrix.add(row);
@@ -194,6 +218,7 @@ public class TradingPosts {
 
     /**
      * Return a collection of paths. Each path consists of posts to be visited.
+     * Closed formula for total number of paths: (n-2)(n-1)/2 + 1 => O(n^2)
      *
      * @param numPosts Input the number of posts from problem
      * @return A set of path arrays
